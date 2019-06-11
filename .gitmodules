@@ -1,0 +1,3 @@
+[submodule "pycantus"]
+	path = pycantus
+	url = git@github.com:bacor/pycantus.git
