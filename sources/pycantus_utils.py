@@ -1,8 +1,7 @@
 import re
-import pandas as pd
+import random
 from pycantus.pycantus import Cantus
 from pycantus.pycantus.volpiano import volpiano_characters, add_flats, volpiano_to_midi
-from matplotlib import pyplot as plt
 from collections import defaultdict
 from plotting import *
 import pickle
@@ -25,9 +24,12 @@ class ChantData(object):
         self.interval = [midi_pitch - self.midi[0] for midi_pitch in self.midi]
         self.contour = flatten_list([[midi_pitch - volpiano_to_midi(group)[0] for midi_pitch in volpiano_to_midi(group)] for group in self.pitch_separated.split("-") if group])
 
+        self.size = len(self.midi)
+
 class ChantDataset(object):
     def __init__(self):
         self.data = self.load_data()
+        self.train_data, self.valid_data, self.test_data = self.split_dataset()
 
     @staticmethod
     def load_data():
@@ -43,6 +45,21 @@ class ChantDataset(object):
             pickle.dump(cdata, open(_DATASET_PATH, "wb"))
         finally:
             return cdata
+
+    def split_dataset(self, validation_data=False, train_slice=0.8):
+        random.seed(42)
+        random.shuffle(self.data)
+
+        train = self.data[: int(len(self.data) * train_slice)]
+        test = self.data[int(len(self.data) * train_slice):]
+
+        if validation_data:
+            valid = test[: len(test) // 2]
+            test = test[len(test) // 2:]
+        else:
+            valid = []
+
+        return train, valid, test
 
 
 class PyCantusUtil(object):
@@ -156,6 +173,10 @@ def build_mode_histograms(chant_data):
 
     return notes_hist, neumes_hist, syllables_hist
 
+def input_length_histogram(data):
+    d = [chant.size for chant in data]
+
+    build_histogram(d, "Input lengths")
 
 data = ChantDataset()
-print("yes")
+input_length_histogram(data.data)
