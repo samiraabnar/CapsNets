@@ -24,12 +24,18 @@ class ChantData(object):
         self.interval = [midi_pitch - self.midi[0] for midi_pitch in self.midi]
         self.contour = flatten_list([[midi_pitch - volpiano_to_midi(group)[0] for midi_pitch in volpiano_to_midi(group)] for group in self.pitch_separated.split("-") if group])
 
-        self.size = len(self.midi)
+    def get_size(self, input_level):
+        return len(getattr(self, input_level))
 
 class ChantDataset(object):
-    def __init__(self):
-        self.data = self.load_data()
-        self.train_data, self.valid_data, self.test_data = self.split_dataset()
+    def __init__(self, input_level="midi"):
+        self.input_level = input_level
+
+        pre_data = self.load_data()
+        self.data = self.filter_data(pre_data)
+        self.pad_size = self.find_pad_size()
+
+        self.train_data, self.train_y, self.valid_data, self.valid_y, self.test_data, self.test_y = self.split_dataset()
 
     @staticmethod
     def load_data():
@@ -46,6 +52,15 @@ class ChantDataset(object):
         finally:
             return cdata
 
+    def filter_data(self, data):
+        return [d for d in data if 5 <= d.get_size(self.input_level) <= 200]
+
+    def split_data_label(self, dataset):
+        data = [getattr(chant, self.input_level) for chant in dataset]
+        label = [chant.mode for chant in dataset]
+
+        return data, label
+
     def split_dataset(self, validation_data=False, train_slice=0.8):
         random.seed(42)
         random.shuffle(self.data)
@@ -59,7 +74,25 @@ class ChantDataset(object):
         else:
             valid = []
 
-        return train, valid, test
+        train.sort(key=lambda chant: chant.get_size(self.input_level))
+
+        train_data, train_y = self.split_data_label(train)
+        test_data, test_y = self.split_data_label(test)
+        valid_data, valid_y = self.split_data_label(valid)
+
+        return (train_data, train_y,
+                valid_data, valid_y,
+                test_data, test_y)
+
+    def find_pad_size(self):
+        max_size = max([d.get_size(self.input_level) for d in self.data])
+        return max_size
+
+    def set_input_level(self, input_level):
+        self.input_level = input_level
+        self.train_data, self.train_y, self.valid_data, self.valid_y, self.test_data, self.test_y = self.split_dataset()
+        self.pad_size = self.find_pad_size()
+
 
 
 class PyCantusUtil(object):
@@ -174,7 +207,7 @@ def build_mode_histograms(chant_data):
     return notes_hist, neumes_hist, syllables_hist
 
 def input_length_histogram(data):
-    d = [chant.size for chant in data]
+    d = [chant.get_size("midi") for chant in data]
 
     build_histogram(d, "Input lengths")
 
