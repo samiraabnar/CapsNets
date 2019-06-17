@@ -1,3 +1,6 @@
 [submodule "pycantus"]
 	path = pycantus
 	url = git@github.com:bacor/pycantus.git
+[submodule "CapsuleNLP"]
+	path = CapsuleNLP
+	url = git@github.com:VCharatsidis/CapsuleNLP.git
